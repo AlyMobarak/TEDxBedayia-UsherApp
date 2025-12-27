@@ -1,4 +1,4 @@
-import { deleteAppKey, getAppKey, saveAppKey } from "@/utils/storage";
+import { getAppKey, saveAppKey } from "@/utils/storage";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -16,7 +16,6 @@ export default function SetupScreen() {
   const [existingKey, setExistingKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     loadExistingKey();
@@ -46,37 +45,13 @@ export default function SetupScreen() {
     try {
       await saveAppKey(appKey.trim());
       Alert.alert("Success", "App key saved successfully", [
-        { text: "OK", onPress: () => router.back() },
+        { text: "OK", onPress: () => router.dismiss() },
       ]);
     } catch {
       Alert.alert("Error", "Failed to save app key");
     } finally {
       setSaving(false);
     }
-  }
-
-  async function handleClear() {
-    Alert.alert(
-      "Clear App Key",
-      "Are you sure you want to remove the saved app key?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteAppKey();
-              setAppKey("");
-              setExistingKey(null);
-              Alert.alert("Success", "App key cleared");
-            } catch {
-              Alert.alert("Error", "Failed to clear app key");
-            }
-          },
-        },
-      ]
-    );
   }
 
   if (loading) {
@@ -95,77 +70,49 @@ export default function SetupScreen() {
       </View>
 
       <View style={styles.form}>
-        {existingKey && !isEditing ? (
-          // Show status view when key exists and not editing
-          <>
-            <View style={styles.statusCard}>
-              <Text style={styles.statusLabel}>App Key Status</Text>
-              <Text style={styles.statusValue}>Configured ✓</Text>
-              <Text style={styles.maskedKey}>••••••••••••••••</Text>
-            </View>
+        <Text style={styles.label}>
+          {existingKey ? "New App Key" : "App Key"}
+        </Text>
+        <TextInput
+          style={styles.input}
+          value={appKey}
+          onChangeText={setAppKey}
+          placeholder="Enter your app key"
+          placeholderTextColor="#999"
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+          autoFocus
+        />
 
-            <Pressable
-              style={[styles.button, styles.editButton]}
-              onPress={() => {
-                setIsEditing(true);
-                setAppKey("");
-              }}
-            >
-              <Text style={styles.buttonText}>Change App Key</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.button, styles.clearButton]}
-              onPress={handleClear}
-            >
-              <Text style={styles.clearButtonText}>Clear Saved Key</Text>
-            </Pressable>
-          </>
-        ) : (
-          // Show input form when no key or editing
-          <>
-            <Text style={styles.label}>App Key</Text>
-            <TextInput
-              style={styles.input}
-              value={appKey}
-              onChangeText={setAppKey}
-              placeholder="Enter your app key"
-              placeholderTextColor="#999"
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry
-              autoFocus={isEditing}
-            />
-
-            <Pressable
-              style={[
-                styles.button,
-                styles.saveButton,
-                saving && styles.buttonDisabled,
-              ]}
-              onPress={handleSave}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={styles.buttonText}>Save Key</Text>
-              )}
-            </Pressable>
-
-            {isEditing && (
-              <Pressable
-                style={[styles.button, styles.clearButton]}
-                onPress={() => {
-                  setIsEditing(false);
-                  setAppKey(existingKey || "");
-                }}
-              >
-                <Text style={styles.clearButtonText}>Cancel</Text>
-              </Pressable>
-            )}
-          </>
+        {existingKey && (
+          <Text style={styles.hint}>
+            A key is already configured. Enter a new one to replace it.
+          </Text>
         )}
+
+        <Pressable
+          style={[
+            styles.button,
+            styles.saveButton,
+            saving && styles.buttonDisabled,
+          ]}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text style={styles.buttonText}>Save Key</Text>
+          )}
+        </Pressable>
+
+        <Pressable
+          style={[styles.button, styles.clearButton]}
+          onPress={() => router.dismiss()}
+        >
+          <Text style={styles.clearButtonText}>Cancel</Text>
+        </Pressable>
       </View>
 
       <View style={styles.footer}>
@@ -230,40 +177,10 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: "#E62B1E",
   },
-  editButton: {
-    backgroundColor: "#E62B1E",
-  },
   clearButton: {
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: "#444",
-  },
-  statusCard: {
-    backgroundColor: "#1a1a1a",
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#333",
-    alignItems: "center",
-  },
-  statusLabel: {
-    fontSize: 14,
-    color: "#888",
-    marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  statusValue: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#22c55e",
-    marginBottom: 8,
-  },
-  maskedKey: {
-    fontSize: 16,
-    color: "#666",
-    letterSpacing: 2,
   },
   buttonDisabled: {
     opacity: 0.6,
