@@ -1,23 +1,68 @@
 import { ResultOverlay } from "@/components/result-overlay";
 import { admitTicket, TicketResponse } from "@/services/ticket-api";
+import { addScanRecord } from "@/utils/scan-history";
 import { getAppKey } from "@/utils/storage";
 import {
   BarcodeScanningResult,
   CameraView,
   useCameraPermissions,
 } from "expo-camera";
+import { useKeepAwake } from "expo-keep-awake";
 import { router, useFocusEffect } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  Animated,
+  Easing,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 
 export default function ScannerScreen() {
+  // Keep screen awake while scanning
+  useKeepAwake();
+
   const [permission, requestPermission] = useCameraPermissions();
   const [appKey, setAppKey] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [result, setResult] = useState<TicketResponse | null>(null);
+  const [torchOn, setTorchOn] = useState(false);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualUuid, setManualUuid] = useState("");
   const lastScannedRef = useRef<string | null>(null);
+
+  // Loading animation
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (isProcessing) {
+      // Start pulsing animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.1,
+            duration: 500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isProcessing, pulseAnim]);
 
   // Load app key when screen comes into focus
   useFocusEffect(
@@ -36,16 +81,7 @@ export default function ScannerScreen() {
     setAppKey(key);
   }
 
-  async function handleBarcodeScanned(scanResult: BarcodeScanningResult) {
-    // Prevent multiple scans of the same code or while processing
-    if (!isScanning || isProcessing) return;
-
-    const scannedData = scanResult.data;
-
-    // Avoid processing the same QR code twice in a row
-    if (lastScannedRef.current === scannedData) return;
-    lastScannedRef.current = scannedData;
-
+  async function processTicket(uuid: string) {
     if (!appKey) {
       Alert.alert("No App Key", "Please set up your app key first.", [
         { text: "Setup", onPress: () => router.push("/setup") },
@@ -57,28 +93,68 @@ export default function ScannerScreen() {
     setIsProcessing(true);
 
     try {
-      // Extract UUID from QR code data
-      // The QR code might contain just the UUID or a full URL
-      let uuid = scannedData;
-
-      // If it's a URL, try to extract the UUID from it
-      if (scannedData.includes("/")) {
-        const parts = scannedData.split("/");
-        uuid = parts[parts.length - 1];
-      }
-
       const response = await admitTicket(uuid, appKey);
       setResult(response);
       setShowResult(true);
-    } catch (error) {
-      setResult({
+
+      // Save to scan history
+      await addScanRecord({
+        uuid,
+        name: response.success ? response.applicant.full_name : "Unknown",
+        success: response.success,
+        error: !response.success ? response.error : undefined,
+      });
+    } catch {
+      const errorResponse: TicketResponse = {
+        success: false,
+        error: "Failed to process ticket",
+      };
+      setResult(errorResponse);
+      setShowResult(true);
+
+      await addScanRecord({
+        uuid,
+        name: "Unknown",
         success: false,
         error: "Failed to process ticket",
       });
-      setShowResult(true);
     } finally {
       setIsProcessing(false);
     }
+  }
+
+  async function handleBarcodeScanned(scanResult: BarcodeScanningResult) {
+    // Prevent multiple scans of the same code or while processing
+    if (!isScanning || isProcessing) return;
+
+    const scannedData = scanResult.data;
+
+    // Avoid processing the same QR code twice in a row
+    if (lastScannedRef.current === scannedData) return;
+    lastScannedRef.current = scannedData;
+
+    // Extract UUID from QR code data
+    let uuid = scannedData;
+
+    // If it's a URL, try to extract the UUID from it
+    if (scannedData.includes("/")) {
+      const parts = scannedData.split("/");
+      uuid = parts[parts.length - 1];
+    }
+
+    await processTicket(uuid);
+  }
+
+  async function handleManualSubmit() {
+    const uuid = manualUuid.trim();
+    if (!uuid) {
+      Alert.alert("Error", "Please enter a valid UUID");
+      return;
+    }
+
+    setShowManualEntry(false);
+    setManualUuid("");
+    await processTicket(uuid);
   }
 
   function handleDismissResult() {
@@ -126,6 +202,7 @@ export default function ScannerScreen() {
       <CameraView
         style={styles.camera}
         facing="back"
+        enableTorch={torchOn}
         barcodeScannerSettings={{
           barcodeTypes: ["qr"],
         }}
@@ -134,18 +211,62 @@ export default function ScannerScreen() {
 
       {/* Overlay positioned absolutely on top of camera */}
       <View style={styles.overlay} pointerEvents="box-none">
-        {/* Top section */}
-        <View style={styles.overlaySection} />
+        {/* Top section with flashlight button */}
+        <View style={styles.overlaySection}>
+          <View style={styles.topControls}>
+            <Pressable
+              style={[styles.iconButton, torchOn && styles.iconButtonActive]}
+              onPress={() => setTorchOn(!torchOn)}
+            >
+              <Text style={styles.iconButtonText}>{torchOn ? "🔦" : "💡"}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.iconButton}
+              onPress={() => setShowManualEntry(true)}
+            >
+              <Text style={styles.iconButtonText}>⌨️</Text>
+            </Pressable>
+          </View>
+        </View>
 
         {/* Middle section with scanner frame */}
         <View style={styles.middleSection}>
           <View style={styles.overlaySection} />
-          <View style={styles.scanFrame}>
-            <View style={[styles.corner, styles.topLeft]} />
-            <View style={[styles.corner, styles.topRight]} />
-            <View style={[styles.corner, styles.bottomLeft]} />
-            <View style={[styles.corner, styles.bottomRight]} />
-          </View>
+          <Animated.View
+            style={[
+              styles.scanFrame,
+              isProcessing && { transform: [{ scale: pulseAnim }] },
+            ]}
+          >
+            <View
+              style={[
+                styles.corner,
+                styles.topLeft,
+                isProcessing && styles.cornerProcessing,
+              ]}
+            />
+            <View
+              style={[
+                styles.corner,
+                styles.topRight,
+                isProcessing && styles.cornerProcessing,
+              ]}
+            />
+            <View
+              style={[
+                styles.corner,
+                styles.bottomLeft,
+                isProcessing && styles.cornerProcessing,
+              ]}
+            />
+            <View
+              style={[
+                styles.corner,
+                styles.bottomRight,
+                isProcessing && styles.cornerProcessing,
+              ]}
+            />
+          </Animated.View>
           <View style={styles.overlaySection} />
         </View>
 
@@ -169,6 +290,50 @@ export default function ScannerScreen() {
           </View>
         </View>
       </View>
+
+      {/* Manual Entry Modal */}
+      <Modal
+        visible={showManualEntry}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowManualEntry(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Manual Entry</Text>
+            <Text style={styles.modalSubtitle}>
+              Enter the ticket UUID manually
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              value={manualUuid}
+              onChangeText={setManualUuid}
+              placeholder="Enter UUID"
+              placeholderTextColor="#666"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => {
+                  setShowManualEntry(false);
+                  setManualUuid("");
+                }}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonSubmit]}
+                onPress={handleManualSubmit}
+              >
+                <Text style={styles.modalButtonText}>Submit</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <ResultOverlay
         visible={showResult}
@@ -239,6 +404,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 4,
     borderRightWidth: 4,
   },
+  cornerProcessing: {
+    borderColor: "#fbbf24",
+  },
+  topControls: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  iconButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  iconButtonActive: {
+    backgroundColor: "rgba(251, 191, 36, 0.4)",
+  },
+  iconButtonText: {
+    fontSize: 24,
+  },
   instructions: {
     alignItems: "center",
     paddingTop: 40,
@@ -276,5 +465,69 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: "#1a1a1a",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: "#888",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  modalInput: {
+    backgroundColor: "#2a2a2a",
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: "#fff",
+    borderWidth: 1,
+    borderColor: "#444",
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  modalButtonCancel: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#444",
+  },
+  modalButtonSubmit: {
+    backgroundColor: "#E62B1E",
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  modalButtonTextCancel: {
+    color: "#888",
+    fontSize: 16,
   },
 });

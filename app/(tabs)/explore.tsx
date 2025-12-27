@@ -1,20 +1,87 @@
+import {
+  clearScanHistory,
+  getScanHistory,
+  getTodayStats,
+  ScanRecord,
+} from "@/utils/scan-history";
 import { getAppKey } from "@/utils/storage";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 export default function SettingsScreen() {
   const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const [scanHistory, setScanHistory] = useState<ScanRecord[]>([]);
+  const [stats, setStats] = useState({ total: 0, admitted: 0, rejected: 0 });
 
   useFocusEffect(
     useCallback(() => {
       checkKey();
+      loadHistory();
     }, [])
   );
 
   async function checkKey() {
     const key = await getAppKey();
     setHasKey(!!key);
+  }
+
+  async function loadHistory() {
+    const history = await getScanHistory();
+    setScanHistory(history);
+    const todayStats = await getTodayStats();
+    setStats(todayStats);
+  }
+
+  function handleClearHistory() {
+    Alert.alert(
+      "Clear History",
+      "Are you sure you want to clear all scan history?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: async () => {
+            await clearScanHistory();
+            setScanHistory([]);
+            setStats({ total: 0, admitted: 0, rejected: 0 });
+          },
+        },
+      ]
+    );
+  }
+
+  function formatTime(timestamp: number): string {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function renderScanItem({ item }: { item: ScanRecord }) {
+    return (
+      <View style={styles.historyItem}>
+        <View
+          style={[
+            styles.historyIndicator,
+            { backgroundColor: item.success ? "#22c55e" : "#ef4444" },
+          ]}
+        />
+        <View style={styles.historyContent}>
+          <Text style={styles.historyName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text style={styles.historyTime}>{formatTime(item.timestamp)}</Text>
+        </View>
+        <Text style={styles.historyStatus}>{item.success ? "✓" : "✗"}</Text>
+      </View>
+    );
   }
 
   return (
@@ -25,6 +92,27 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.content}>
+        {/* Stats Cards */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.total}</Text>
+            <Text style={styles.statLabel}>Today</Text>
+          </View>
+          <View style={[styles.statCard, styles.statCardSuccess]}>
+            <Text style={[styles.statValue, { color: "#22c55e" }]}>
+              {stats.admitted}
+            </Text>
+            <Text style={styles.statLabel}>Admitted</Text>
+          </View>
+          <View style={[styles.statCard, styles.statCardError]}>
+            <Text style={[styles.statValue, { color: "#ef4444" }]}>
+              {stats.rejected}
+            </Text>
+            <Text style={styles.statLabel}>Rejected</Text>
+          </View>
+        </View>
+
+        {/* App Key Status */}
         <View style={styles.statusCard}>
           <Text style={styles.statusLabel}>App Key Status</Text>
           <Text
@@ -46,6 +134,30 @@ export default function SettingsScreen() {
             {hasKey ? "Change App Key" : "Set Up App Key"}
           </Text>
         </Pressable>
+
+        {/* Scan History */}
+        <View style={styles.historyHeader}>
+          <Text style={styles.historyTitle}>Recent Scans</Text>
+          {scanHistory.length > 0 && (
+            <Pressable onPress={handleClearHistory}>
+              <Text style={styles.clearButton}>Clear</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {scanHistory.length === 0 ? (
+          <View style={styles.emptyHistory}>
+            <Text style={styles.emptyHistoryText}>No scans yet</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={scanHistory.slice(0, 20)}
+            keyExtractor={(item) => item.id}
+            renderItem={renderScanItem}
+            style={styles.historyList}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
       </View>
 
       <View style={styles.footer}>
@@ -61,66 +173,156 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
     padding: 24,
-    paddingTop: 80,
+    paddingTop: 60,
   },
   header: {
     alignItems: "center",
-    marginBottom: 48,
+    marginBottom: 24,
   },
   logo: {
-    fontSize: 48,
+    fontSize: 36,
     fontWeight: "bold",
     color: "#E62B1E",
   },
   title: {
-    fontSize: 24,
+    fontSize: 18,
     color: "#fff",
-    marginTop: 8,
+    marginTop: 4,
   },
   content: {
     flex: 1,
   },
+  statsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 16,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "#1a1a1a",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  statCardSuccess: {
+    borderColor: "rgba(34, 197, 94, 0.3)",
+  },
+  statCardError: {
+    borderColor: "rgba(239, 68, 68, 0.3)",
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#888",
+    marginTop: 4,
+    textTransform: "uppercase",
+  },
   statusCard: {
     backgroundColor: "#1a1a1a",
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 24,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: "#333",
   },
   statusLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#888",
-    marginBottom: 8,
+    marginBottom: 4,
     textTransform: "uppercase",
     letterSpacing: 1,
   },
   statusValue: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "bold",
   },
   button: {
     backgroundColor: "#E62B1E",
     borderRadius: 12,
-    padding: 18,
+    padding: 16,
     alignItems: "center",
+    marginBottom: 24,
   },
   buttonText: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
+  },
+  historyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  clearButton: {
+    fontSize: 14,
+    color: "#E62B1E",
+  },
+  historyList: {
+    flex: 1,
+  },
+  historyItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1a1a1a",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  historyIndicator: {
+    width: 4,
+    height: 32,
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  historyContent: {
+    flex: 1,
+  },
+  historyName: {
+    fontSize: 15,
+    color: "#fff",
+    fontWeight: "500",
+  },
+  historyTime: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
+  },
+  historyStatus: {
+    fontSize: 18,
+    marginLeft: 8,
+  },
+  emptyHistory: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyHistoryText: {
+    color: "#666",
+    fontSize: 14,
   },
   footer: {
     alignItems: "center",
-    paddingBottom: 20,
+    paddingBottom: 10,
   },
   footerText: {
     color: "#666",
-    fontSize: 16,
-    marginBottom: 4,
+    fontSize: 14,
+    marginBottom: 2,
   },
   versionText: {
     color: "#444",
-    fontSize: 12,
+    fontSize: 11,
   },
 });

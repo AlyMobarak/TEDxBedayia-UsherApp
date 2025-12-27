@@ -1,4 +1,5 @@
 const API_BASE_URL = "https://www.tedxbedayia.com/api/tickets/admit";
+const REQUEST_TIMEOUT = 15000; // 15 seconds
 
 export interface Applicant {
   full_name: string;
@@ -14,6 +15,7 @@ export interface TicketSuccessResponse {
 export interface TicketErrorResponse {
   success: false;
   error: string;
+  isNetworkError?: boolean;
 }
 
 export type TicketResponse = TicketSuccessResponse | TicketErrorResponse;
@@ -22,6 +24,9 @@ export async function admitTicket(
   uuid: string,
   appKey: string
 ): Promise<TicketResponse> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
   try {
     const url = `${API_BASE_URL}/${uuid}?key=${encodeURIComponent(appKey)}`;
     const response = await fetch(url, {
@@ -30,7 +35,10 @@ export async function admitTicket(
         Accept: "application/json",
         "User-Agent": "TEDxBedayia-Usher-App/1.0",
       },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     const data = await response.json();
 
@@ -46,9 +54,41 @@ export async function admitTicket(
       };
     }
   } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error instanceof Error) {
+      if (error.name === "AbortError") {
+        return {
+          success: false,
+          error: "Request timed out. Please check your internet connection.",
+          isNetworkError: true,
+        };
+      }
+
+      // Check for common network errors
+      if (
+        error.message.includes("Network request failed") ||
+        error.message.includes("Failed to fetch") ||
+        error.message.includes("network")
+      ) {
+        return {
+          success: false,
+          error: "No internet connection. Please check your network.",
+          isNetworkError: true,
+        };
+      }
+
+      return {
+        success: false,
+        error: error.message,
+        isNetworkError: true,
+      };
+    }
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Network error occurred",
+      error: "Network error occurred. Please try again.",
+      isNetworkError: true,
     };
   }
 }
