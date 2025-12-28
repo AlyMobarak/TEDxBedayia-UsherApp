@@ -22,13 +22,16 @@ export type TicketResponse = TicketSuccessResponse | TicketErrorResponse;
 
 export async function admitTicket(
   uuid: string,
-  appKey: string
+  appKey: string,
+  deviceUid: string
 ): Promise<TicketResponse> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
   try {
-    const url = `${API_BASE_URL}/${uuid}?key=${encodeURIComponent(appKey)}`;
+    const url = `${API_BASE_URL}/${uuid}?key=${encodeURIComponent(
+      appKey
+    )}&device=${encodeURIComponent(deviceUid)}`;
     const response = await fetch(url, {
       method: "GET",
       headers: {

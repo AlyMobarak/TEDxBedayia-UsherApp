@@ -1,7 +1,7 @@
 import { ResultOverlay } from "@/components/result-overlay";
 import { admitTicket, TicketResponse } from "@/services/ticket-api";
 import { addScanRecord } from "@/utils/scan-history";
-import { getAppKey } from "@/utils/storage";
+import { getAppKey, getDeviceUid } from "@/utils/storage";
 import {
   BarcodeScanningResult,
   CameraView,
@@ -28,6 +28,7 @@ export default function ScannerScreen() {
 
   const [permission, requestPermission] = useCameraPermissions();
   const [appKey, setAppKey] = useState<string | null>(null);
+  const [deviceUid, setDeviceUid] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResult, setShowResult] = useState(false);
@@ -68,6 +69,7 @@ export default function ScannerScreen() {
   useFocusEffect(
     useCallback(() => {
       loadAppKey();
+      loadDeviceUid();
       // Reset scanning state when returning to this screen
       setIsScanning(true);
       setShowResult(false);
@@ -78,7 +80,12 @@ export default function ScannerScreen() {
 
   async function loadAppKey() {
     const key = await getAppKey();
-    setAppKey(key);
+    setAppKey(key ?? ""); // null from storage becomes empty string to indicate "not set"
+  }
+
+  async function loadDeviceUid() {
+    const uid = await getDeviceUid();
+    setDeviceUid(uid);
   }
 
   async function processTicket(uuid: string) {
@@ -89,11 +96,16 @@ export default function ScannerScreen() {
       return;
     }
 
+    if (!deviceUid) {
+      Alert.alert("Error", "Device ID not available. Please restart the app.");
+      return;
+    }
+
     setIsScanning(false);
     setIsProcessing(true);
 
     try {
-      const response = await admitTicket(uuid, appKey);
+      const response = await admitTicket(uuid, appKey, deviceUid);
       setResult(response);
       setShowResult(true);
 
@@ -188,13 +200,19 @@ export default function ScannerScreen() {
     );
   }
 
-  // No app key set
+  // App key loading
   if (appKey === null) {
     return (
       <View style={styles.container}>
         <Text style={styles.message}>Loading...</Text>
       </View>
     );
+  }
+
+  if (appKey === "") {
+    // No app key configured, redirect to setup
+    router.replace("/setup");
+    return null;
   }
 
   return (

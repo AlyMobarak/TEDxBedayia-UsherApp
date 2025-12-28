@@ -1,10 +1,9 @@
 import {
   clearScanHistory,
   getScanHistory,
-  getTodayStats,
   ScanRecord,
 } from "@/utils/scan-history";
-import { getAppKey } from "@/utils/storage";
+import { getAppKey, getDeviceUid } from "@/utils/storage";
 import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -19,12 +18,13 @@ import {
 export default function SettingsScreen() {
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   const [scanHistory, setScanHistory] = useState<ScanRecord[]>([]);
-  const [stats, setStats] = useState({ total: 0, admitted: 0, rejected: 0 });
+  const [deviceUid, setDeviceUid] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       checkKey();
       loadHistory();
+      loadDeviceUid();
     }, [])
   );
 
@@ -36,8 +36,11 @@ export default function SettingsScreen() {
   async function loadHistory() {
     const history = await getScanHistory();
     setScanHistory(history);
-    const todayStats = await getTodayStats();
-    setStats(todayStats);
+  }
+
+  async function loadDeviceUid() {
+    const uid = await getDeviceUid();
+    setDeviceUid(uid);
   }
 
   function handleClearHistory() {
@@ -52,7 +55,6 @@ export default function SettingsScreen() {
           onPress: async () => {
             await clearScanHistory();
             setScanHistory([]);
-            setStats({ total: 0, admitted: 0, rejected: 0 });
           },
         },
       ]
@@ -92,26 +94,6 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.content}>
-        {/* Stats Cards */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Today</Text>
-          </View>
-          <View style={[styles.statCard, styles.statCardSuccess]}>
-            <Text style={[styles.statValue, { color: "#22c55e" }]}>
-              {stats.admitted}
-            </Text>
-            <Text style={styles.statLabel}>Admitted</Text>
-          </View>
-          <View style={[styles.statCard, styles.statCardError]}>
-            <Text style={[styles.statValue, { color: "#ef4444" }]}>
-              {stats.rejected}
-            </Text>
-            <Text style={styles.statLabel}>Rejected</Text>
-          </View>
-        </View>
-
         {/* App Key Status */}
         <View style={styles.statusCard}>
           <Text style={styles.statusLabel}>App Key Status</Text>
@@ -162,7 +144,10 @@ export default function SettingsScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>TEDxBedayia 2025</Text>
-        <Text style={styles.versionText}>Usher App v1.0.0</Text>
+        <Text style={styles.versionText}>Usher App v1.0</Text>
+        {deviceUid && (
+          <Text style={styles.deviceUidText}>UID: {deviceUid}</Text>
+        )}
       </View>
     </View>
   );
@@ -191,37 +176,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: "#1a1a1a",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#333",
-  },
-  statCardSuccess: {
-    borderColor: "rgba(34, 197, 94, 0.3)",
-  },
-  statCardError: {
-    borderColor: "rgba(239, 68, 68, 0.3)",
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 4,
-    textTransform: "uppercase",
   },
   statusCard: {
     backgroundColor: "#1a1a1a",
@@ -324,5 +278,11 @@ const styles = StyleSheet.create({
   versionText: {
     color: "#444",
     fontSize: 11,
+  },
+  deviceUidText: {
+    color: "#333",
+    fontSize: 10,
+    marginTop: 4,
+    fontFamily: "monospace",
   },
 });
