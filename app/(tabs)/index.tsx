@@ -78,6 +78,13 @@ export default function ScannerScreen() {
     }, [])
   );
 
+  // Redirect to setup if no app key configured
+  useEffect(() => {
+    if (appKey === "") {
+      router.replace("/setup");
+    }
+  }, [appKey]);
+
   async function loadAppKey() {
     const key = await getAppKey();
     setAppKey(key ?? ""); // null from storage becomes empty string to indicate "not set"
@@ -200,19 +207,14 @@ export default function ScannerScreen() {
     );
   }
 
-  // App key loading
-  if (appKey === null) {
+  // App key loading or not set - show loading screen
+  // The redirect to setup happens in useEffect below
+  if (appKey === null || appKey === "") {
     return (
       <View style={styles.container}>
         <Text style={styles.message}>Loading...</Text>
       </View>
     );
-  }
-
-  if (appKey === "") {
-    // No app key configured, redirect to setup
-    router.replace("/setup");
-    return null;
   }
 
   return (
