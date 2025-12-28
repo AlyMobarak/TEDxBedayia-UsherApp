@@ -88,7 +88,7 @@ export default function SettingsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.logo}>TEDx</Text>
-        <Text style={styles.title}>eTicket Usher System</Text>
+        <Text style={styles.title}>eGate System</Text>
       </View>
 
       <View style={styles.content}>

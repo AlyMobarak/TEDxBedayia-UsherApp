@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "tedxbedayia-ushers",
+    "name": "TEDxBedayia eGates",
     "slug": "tedxbedayia-ushers",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -22,9 +22,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.tedxbedayia.ushers",
-      "permissions": [
-        "android.permission.CAMERA"
-      ]
+      "permissions": ["android.permission.CAMERA"]
     },
     "plugins": [
       "expo-router",

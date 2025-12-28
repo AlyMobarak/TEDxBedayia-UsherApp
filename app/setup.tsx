@@ -66,7 +66,7 @@ export default function SetupScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.logo}>TEDx</Text>
-        <Text style={styles.title}>Bedayia Ushers</Text>
+        <Text style={styles.title}>eGate System</Text>
       </View>
 
       <View style={styles.form}>
