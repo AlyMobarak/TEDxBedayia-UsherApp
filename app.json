@@ -22,7 +22,10 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.tedxbedayia.ushers",
-      "permissions": ["android.permission.CAMERA"],
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.CAMERA"
+      ],
       "navigationBar": {
         "backgroundColor": "#000000",
         "barStyle": "light-content"
@@ -58,6 +61,12 @@
       "eas": {
         "projectId": "d1a0ba5b-5044-43e8-b26d-56f8b526bdd9"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d1a0ba5b-5044-43e8-b26d-56f8b526bdd9"
     }
   }
 }
