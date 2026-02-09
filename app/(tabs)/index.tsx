@@ -58,7 +58,7 @@ export default function ScannerScreen() {
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     } else {
       pulseAnim.setValue(1);
@@ -75,7 +75,7 @@ export default function ScannerScreen() {
       setShowResult(false);
       setResult(null);
       lastScannedRef.current = null;
-    }, [])
+    }, []),
   );
 
   // Redirect to setup if no app key configured
@@ -328,7 +328,7 @@ export default function ScannerScreen() {
               style={styles.modalInput}
               value={manualUuid}
               onChangeText={setManualUuid}
-              placeholder="Enter UUID"
+              placeholder="Enter the first 8 characters of the ticket ID or Attendee's First Name"
               placeholderTextColor="#666"
               autoCapitalize="none"
               autoCorrect={false}

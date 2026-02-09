@@ -25,7 +25,7 @@ export default function SettingsScreen() {
       checkKey();
       loadHistory();
       loadDeviceUid();
-    }, [])
+    }, []),
   );
 
   async function checkKey() {
@@ -57,7 +57,7 @@ export default function SettingsScreen() {
             setScanHistory([]);
           },
         },
-      ]
+      ],
     );
   }
 
@@ -106,8 +106,8 @@ export default function SettingsScreen() {
             {hasKey === null
               ? "Checking..."
               : hasKey
-              ? "Configured ✓"
-              : "Not Set"}
+                ? "Configured ✓"
+                : "Not Set"}
           </Text>
         </View>
 
@@ -143,7 +143,9 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>TEDxBedayia 2025</Text>
+        <Text style={styles.footerText}>
+          TEDxBedayia {new Date().getFullYear()}
+        </Text>
         <Text style={styles.versionText}>Usher App v1.0</Text>
         {deviceUid && (
           <Text style={styles.deviceUidText}>UID: {deviceUid}</Text>
