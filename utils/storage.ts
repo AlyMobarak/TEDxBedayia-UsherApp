@@ -1,18 +1,44 @@
 import * as SecureStore from "expo-secure-store";
+import { Platform } from "react-native";
 
 const APP_KEY_STORAGE_KEY = "tedx_app_key";
 const DEVICE_UID_STORAGE_KEY = "tedx_device_uid";
 
+// Platform-aware storage helpers
+async function setItem(key: string, value: string): Promise<void> {
+  if (Platform.OS === "web") {
+    localStorage.setItem(key, value);
+  } else {
+    await SecureStore.setItemAsync(key, value);
+  }
+}
+
+async function getItem(key: string): Promise<string | null> {
+  if (Platform.OS === "web") {
+    return localStorage.getItem(key);
+  } else {
+    return await SecureStore.getItemAsync(key);
+  }
+}
+
+async function deleteItem(key: string): Promise<void> {
+  if (Platform.OS === "web") {
+    localStorage.removeItem(key);
+  } else {
+    await SecureStore.deleteItemAsync(key);
+  }
+}
+
 export async function saveAppKey(key: string): Promise<void> {
-  await SecureStore.setItemAsync(APP_KEY_STORAGE_KEY, key);
+  await setItem(APP_KEY_STORAGE_KEY, key);
 }
 
 export async function getAppKey(): Promise<string | null> {
-  return await SecureStore.getItemAsync(APP_KEY_STORAGE_KEY);
+  return await getItem(APP_KEY_STORAGE_KEY);
 }
 
 export async function deleteAppKey(): Promise<void> {
-  await SecureStore.deleteItemAsync(APP_KEY_STORAGE_KEY);
+  await deleteItem(APP_KEY_STORAGE_KEY);
 }
 
 /**
@@ -21,12 +47,12 @@ export async function deleteAppKey(): Promise<void> {
  * this specific device for double-scan prevention.
  */
 export async function getDeviceUid(): Promise<string> {
-  let deviceUid = await SecureStore.getItemAsync(DEVICE_UID_STORAGE_KEY);
+  let deviceUid = await getItem(DEVICE_UID_STORAGE_KEY);
 
   if (!deviceUid) {
     // Generate a short random ID (6 chars)
     deviceUid = Math.random().toString(36).substring(2, 8);
-    await SecureStore.setItemAsync(DEVICE_UID_STORAGE_KEY, deviceUid);
+    await setItem(DEVICE_UID_STORAGE_KEY, deviceUid);
   }
 
   return deviceUid;
