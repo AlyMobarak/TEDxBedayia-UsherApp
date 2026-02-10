@@ -226,7 +226,9 @@ export default function ScannerScreen() {
         barcodeScannerSettings={{
           barcodeTypes: ["qr"],
         }}
-        onBarcodeScanned={isScanning ? handleBarcodeScanned : undefined}
+        onBarcodeScanned={
+          isScanning && !showManualEntry ? handleBarcodeScanned : undefined
+        }
       />
 
       {/* Overlay positioned absolutely on top of camera */}
