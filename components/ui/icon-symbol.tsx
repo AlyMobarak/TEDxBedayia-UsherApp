@@ -23,6 +23,7 @@ const MAPPING = {
   "chevron.right": "chevron-right",
   "qrcode.viewfinder": "qr-code-scanner",
   "gearshape.fill": "settings",
+  "ticket.fill": "confirmation-number",
 } as IconMapping;
 
 /**
