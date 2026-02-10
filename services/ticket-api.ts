@@ -102,6 +102,8 @@ export interface OnDoorTicketPayload {
   name: string;
   email: string;
   phone: string;
+  paymentMethod: "telda" | "instapay" | "cash";
+  senderUsername?: string;
 }
 
 export async function sellOnDoorTicket(

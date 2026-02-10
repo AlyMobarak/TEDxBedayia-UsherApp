@@ -20,6 +20,8 @@ import {
   View,
 } from "react-native";
 
+type PaymentMethod = "telda" | "instapay" | "cash";
+
 export default function OnDoorScreen() {
   const [appKey, setAppKey] = useState<string | null>(null);
   const [deviceUid, setDeviceUid] = useState<string | null>(null);
@@ -27,6 +29,8 @@ export default function OnDoorScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [senderUsername, setSenderUsername] = useState("");
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,10 +63,14 @@ export default function OnDoorScreen() {
     }
   }, [appKey]);
 
+  const requiresUsername =
+    paymentMethod === "telda" || paymentMethod === "instapay";
+
   const isFormValid =
     name.trim().length > 0 &&
     email.trim().length > 0 &&
-    phone.trim().length > 0;
+    phone.trim().length > 0 &&
+    (!requiresUsername || senderUsername.trim().length > 0);
 
   function handleConfirmPress() {
     setShowConfirmModal(true);
@@ -82,6 +90,8 @@ export default function OnDoorScreen() {
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim(),
+      paymentMethod,
+      senderUsername: requiresUsername ? senderUsername.trim() : undefined,
     };
 
     try {
@@ -100,6 +110,8 @@ export default function OnDoorScreen() {
         setName("");
         setEmail("");
         setPhone("");
+        setPaymentMethod("cash");
+        setSenderUsername("");
       } else {
         setResultMessage({
           text: response.error,
@@ -138,6 +150,9 @@ export default function OnDoorScreen() {
         <View style={styles.header}>
           <Text style={styles.logo}>TEDx</Text>
           <Text style={styles.title}>On-Door Ticket</Text>
+          <View style={styles.priceBadge}>
+            <Text style={styles.priceText}>450 EGP</Text>
+          </View>
         </View>
 
         {/* Form */}
@@ -174,6 +189,59 @@ export default function OnDoorScreen() {
             placeholderTextColor="#666"
             keyboardType="phone-pad"
           />
+
+          {/* Payment Method */}
+          <Text style={styles.label}>Payment Method</Text>
+          <View style={styles.paymentMethodRow}>
+            {(["telda", "instapay", "cash"] as PaymentMethod[]).map(
+              (method) => (
+                <Pressable
+                  key={method}
+                  style={[
+                    styles.paymentMethodButton,
+                    paymentMethod === method &&
+                      styles.paymentMethodButtonActive,
+                  ]}
+                  onPress={() => {
+                    setPaymentMethod(method);
+                    if (method === "cash") setSenderUsername("");
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.paymentMethodText,
+                      paymentMethod === method &&
+                        styles.paymentMethodTextActive,
+                    ]}
+                  >
+                    {method === "telda"
+                      ? "Telda"
+                      : method === "instapay"
+                        ? "InstaPay"
+                        : "Cash"}
+                  </Text>
+                </Pressable>
+              ),
+            )}
+          </View>
+
+          {/* Sender Username (for Telda / InstaPay) */}
+          {requiresUsername && (
+            <>
+              <Text style={styles.label}>
+                {paymentMethod === "telda" ? "Telda" : "InstaPay"} Username
+              </Text>
+              <TextInput
+                style={styles.input}
+                value={senderUsername}
+                onChangeText={setSenderUsername}
+                placeholder={`Sender's ${paymentMethod === "telda" ? "Telda" : "InstaPay"} username`}
+                placeholderTextColor="#666"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </>
+          )}
         </View>
 
         {/* Result Message */}
@@ -282,6 +350,21 @@ const styles = StyleSheet.create({
     color: "#fff",
     marginTop: 4,
   },
+  priceBadge: {
+    backgroundColor: "rgba(230, 43, 30, 0.15)",
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "#E62B1E",
+  },
+  priceText: {
+    color: "#E62B1E",
+    fontSize: 20,
+    fontWeight: "bold",
+    letterSpacing: 1,
+  },
   form: {
     marginBottom: 16,
   },
@@ -301,6 +384,31 @@ const styles = StyleSheet.create({
     color: "#fff",
     borderWidth: 1,
     borderColor: "#333",
+  },
+  paymentMethodRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  paymentMethodButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "#1a1a1a",
+    borderWidth: 1,
+    borderColor: "#333",
+  },
+  paymentMethodButtonActive: {
+    backgroundColor: "rgba(230, 43, 30, 0.15)",
+    borderColor: "#E62B1E",
+  },
+  paymentMethodText: {
+    color: "#888",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  paymentMethodTextActive: {
+    color: "#E62B1E",
   },
   resultBanner: {
     borderRadius: 12,
