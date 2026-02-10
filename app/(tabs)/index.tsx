@@ -322,13 +322,13 @@ export default function ScannerScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Manual Entry</Text>
             <Text style={styles.modalSubtitle}>
-              Enter the ticket UUID manually
+              Enter the first 8 characters of the ticket ID or attendee's name
             </Text>
             <TextInput
               style={styles.modalInput}
               value={manualUuid}
               onChangeText={setManualUuid}
-              placeholder="Enter the first 8 characters of the ticket ID or Attendee's First Name"
+              placeholder="Partial Ticket ID or Attendee Name"
               placeholderTextColor="#666"
               autoCapitalize="none"
               autoCorrect={false}

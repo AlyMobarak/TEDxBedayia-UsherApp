@@ -45,7 +45,7 @@ export default function SetupScreen() {
     try {
       await saveAppKey(appKey.trim());
       Alert.alert("Success", "App key saved successfully", [
-        { text: "OK", onPress: () => router.dismiss() },
+        { text: "OK", onPress: () => router.replace("/") },
       ]);
     } catch {
       Alert.alert("Error", "Failed to save app key");
