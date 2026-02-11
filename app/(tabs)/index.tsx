@@ -97,9 +97,7 @@ export default function ScannerScreen() {
 
   async function processTicket(uuid: string) {
     if (!appKey) {
-      Alert.alert("No App Key", "Please set up your app key first.", [
-        { text: "Setup", onPress: () => router.push("/setup") },
-      ]);
+      router.push("/setup");
       return;
     }
 
