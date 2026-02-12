@@ -36,7 +36,7 @@ export async function admitTicket(
       method: "GET",
       headers: {
         Accept: "application/json",
-        "User-Agent": "TEDxBedayia-Usher-App/1.0",
+        "X-Client": "TEDxBedayia-Usher-App/1.0",
       },
       signal: controller.signal,
     });
@@ -120,7 +120,7 @@ export async function sellOnDoorTicket(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        "User-Agent": "TEDxBedayia-Usher-App/1.0",
+        "X-Client": "TEDxBedayia-Usher-App/1.0",
       },
       body: JSON.stringify({
         ...payload,
