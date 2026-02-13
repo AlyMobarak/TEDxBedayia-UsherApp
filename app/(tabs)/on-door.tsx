@@ -1,4 +1,6 @@
 import {
+  fetchOnDoorInfo,
+  OnDoorPaymentMethod,
   OnDoorTicketPayload,
   sellOnDoorTicket,
   TicketResponse,
@@ -20,7 +22,8 @@ import {
   View,
 } from "react-native";
 
-type PaymentMethod = "telda" | "instapay" | "cash";
+const DEFAULT_PRICE = 450;
+const CASH_METHOD = "cash";
 
 export default function OnDoorScreen() {
   const [appKey, setAppKey] = useState<string | null>(null);
@@ -29,8 +32,15 @@ export default function OnDoorScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [paymentMethod, setPaymentMethod] = useState(CASH_METHOD);
   const [senderUsername, setSenderUsername] = useState("");
+
+  // Dynamic data from API
+  const [apiPaymentMethods, setApiPaymentMethods] = useState<
+    OnDoorPaymentMethod[]
+  >([]);
+  const [ticketPrice, setTicketPrice] = useState<number>(DEFAULT_PRICE);
+  const [isLoadingInfo, setIsLoadingInfo] = useState(true);
 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,6 +53,7 @@ export default function OnDoorScreen() {
     useCallback(() => {
       loadAppKey();
       loadDeviceUid();
+      loadOnDoorInfo();
     }, []),
   );
 
@@ -56,6 +67,34 @@ export default function OnDoorScreen() {
     setDeviceUid(uid);
   }
 
+  async function loadOnDoorInfo() {
+    setIsLoadingInfo(true);
+    const info = await fetchOnDoorInfo();
+    if (info) {
+      setTicketPrice(info.prices);
+      setApiPaymentMethods(info.paymentMethods);
+    }
+    setIsLoadingInfo(false);
+  }
+
+  // Build combined payment options: API methods + always-present Cash
+  const allPaymentOptions: {
+    identifier: string;
+    label: string;
+    to?: string;
+  }[] = [
+    ...apiPaymentMethods.map((m) => ({
+      identifier: m.identifier.toLowerCase(),
+      label: m.identifier,
+      to: m.to,
+    })),
+    { identifier: CASH_METHOD, label: "Cash" },
+  ];
+
+  const selectedOption = allPaymentOptions.find(
+    (o) => o.identifier === paymentMethod,
+  );
+
   // Redirect to setup if no app key
   React.useEffect(() => {
     if (appKey === "") {
@@ -63,8 +102,7 @@ export default function OnDoorScreen() {
     }
   }, [appKey]);
 
-  const requiresUsername =
-    paymentMethod === "telda" || paymentMethod === "instapay";
+  const requiresUsername = paymentMethod !== CASH_METHOD;
 
   const isFormValid =
     name.trim().length > 0 &&
@@ -110,7 +148,7 @@ export default function OnDoorScreen() {
         setName("");
         setEmail("");
         setPhone("");
-        setPaymentMethod("cash");
+        setPaymentMethod(CASH_METHOD);
         setSenderUsername("");
       } else {
         setResultMessage({
@@ -151,7 +189,7 @@ export default function OnDoorScreen() {
           <Text style={styles.logo}>TEDx</Text>
           <Text style={styles.title}>On-Door Ticket</Text>
           <View style={styles.priceBadge}>
-            <Text style={styles.priceText}>450 EGP</Text>
+            <Text style={styles.priceText}>{ticketPrice} EGP</Text>
           </View>
         </View>
 
@@ -192,50 +230,57 @@ export default function OnDoorScreen() {
 
           {/* Payment Method */}
           <Text style={styles.label}>Payment Method</Text>
-          <View style={styles.paymentMethodRow}>
-            {(["telda", "instapay", "cash"] as PaymentMethod[]).map(
-              (method) => (
+          {isLoadingInfo ? (
+            <ActivityIndicator color="#E62B1E" style={{ marginVertical: 12 }} />
+          ) : (
+            <View style={styles.paymentMethodRow}>
+              {allPaymentOptions.map((option) => (
                 <Pressable
-                  key={method}
+                  key={option.identifier}
                   style={[
                     styles.paymentMethodButton,
-                    paymentMethod === method &&
+                    paymentMethod === option.identifier &&
                       styles.paymentMethodButtonActive,
                   ]}
                   onPress={() => {
-                    setPaymentMethod(method);
-                    if (method === "cash") setSenderUsername("");
+                    setPaymentMethod(option.identifier);
+                    if (option.identifier === CASH_METHOD)
+                      setSenderUsername("");
                   }}
                 >
                   <Text
                     style={[
                       styles.paymentMethodText,
-                      paymentMethod === method &&
+                      paymentMethod === option.identifier &&
                         styles.paymentMethodTextActive,
                     ]}
                   >
-                    {method === "telda"
-                      ? "Telda"
-                      : method === "instapay"
-                        ? "InstaPay"
-                        : "Cash"}
+                    {option.label}
                   </Text>
                 </Pressable>
-              ),
-            )}
-          </View>
+              ))}
+            </View>
+          )}
 
-          {/* Sender Username (for Telda / InstaPay) */}
+          {/* Recipient info – shown when a non-cash method is selected */}
+          {requiresUsername && selectedOption?.to && (
+            <View style={styles.recipientInfoBox}>
+              <Text style={styles.recipientLabel}>ATTENDEE SENDS TO</Text>
+              <Text style={styles.recipientValue}>{selectedOption.to}</Text>
+            </View>
+          )}
+
+          {/* Sender Username (for non-cash methods) */}
           {requiresUsername && (
             <>
               <Text style={styles.label}>
-                {paymentMethod === "telda" ? "Telda" : "InstaPay"} Username
+                Sender&apos;s {selectedOption?.label ?? paymentMethod} Username
               </Text>
               <TextInput
                 style={styles.input}
                 value={senderUsername}
                 onChangeText={setSenderUsername}
-                placeholder={`Sender's ${paymentMethod === "telda" ? "Telda" : "InstaPay"} username`}
+                placeholder={`Sender's ${selectedOption?.label ?? paymentMethod} username`}
                 placeholderTextColor="#666"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -388,9 +433,11 @@ const styles = StyleSheet.create({
   paymentMethodRow: {
     flexDirection: "row",
     gap: 10,
+    flexWrap: "wrap",
   },
   paymentMethodButton: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: "28%",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
@@ -409,6 +456,28 @@ const styles = StyleSheet.create({
   },
   paymentMethodTextActive: {
     color: "#E62B1E",
+  },
+  recipientInfoBox: {
+    backgroundColor: "rgba(34, 197, 94, 0.12)",
+    borderWidth: 1,
+    borderColor: "#22c55e",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    alignItems: "center",
+  },
+  recipientLabel: {
+    fontSize: 11,
+    color: "#22c55e",
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  recipientValue: {
+    fontSize: 20,
+    color: "#fff",
+    fontWeight: "bold",
+    letterSpacing: 0.5,
   },
   resultBanner: {
     borderRadius: 12,

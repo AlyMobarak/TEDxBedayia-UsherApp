@@ -98,11 +98,46 @@ export async function admitTicket(
 
 const ON_DOOR_API_URL = "https://www.tedxbedayia.com/api/tickets/on-door";
 
+export interface OnDoorPaymentMethod {
+  identifier: string;
+  to: string;
+}
+
+export interface OnDoorInfo {
+  prices: number;
+  paymentMethods: OnDoorPaymentMethod[];
+}
+
+export async function fetchOnDoorInfo(): Promise<OnDoorInfo | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
+    const response = await fetch(ON_DOOR_API_URL, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "X-Client": "TEDxBedayia-Usher-App/1.0",
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.status === 200) {
+      return (await response.json()) as OnDoorInfo;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export interface OnDoorTicketPayload {
   name: string;
   email: string;
   phone: string;
-  paymentMethod: "telda" | "instapay" | "cash";
+  paymentMethod: string;
   senderUsername?: string;
 }
 
