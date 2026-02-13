@@ -85,7 +85,7 @@ export default function OnDoorScreen() {
   }[] = [
     ...apiPaymentMethods.map((m) => ({
       identifier: m.identifier.toLowerCase(),
-      label: m.identifier,
+      label: m.displayName,
       to: m.to,
     })),
     { identifier: CASH_METHOD, label: "Cash" },

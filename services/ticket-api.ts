@@ -100,6 +100,7 @@ const ON_DOOR_API_URL = "https://www.tedxbedayia.com/api/tickets/on-door";
 
 export interface OnDoorPaymentMethod {
   identifier: string;
+  displayName: string;
   to: string;
 }
 
