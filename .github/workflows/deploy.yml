@@ -4,6 +4,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   update:
     name: EAS Update
@@ -30,7 +33,8 @@ jobs:
 
       # 1. Publish to Preview Branch (Android App)
       - name: 🚀 Publish to Preview
-        run: eas update --branch preview --message "Commit: ${{ github.sha }}"
+        run: |
+          eas update --branch preview --message "Commit: ${{ github.sha }}"
 
       # 2. Publish to Production Branch (iPhone users using the website)
       - name: 🚀 Publish to Production
