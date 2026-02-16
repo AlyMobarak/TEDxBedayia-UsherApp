@@ -28,4 +28,4 @@ jobs:
         run: npx expo-doctor # Checks for common config issues and dependency mismatches
 
       - name: 🏗 Type Check
-        run: npx tsc # Validates TypeScript
+        run: npx tsc --noEmit # Validates TypeScript
