@@ -25,11 +25,7 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.CAMERA"
-      ],
-      "navigationBar": {
-        "backgroundColor": "#000000",
-        "barStyle": "light-content"
-      }
+      ]
     },
     "plugins": [
       "expo-router",
