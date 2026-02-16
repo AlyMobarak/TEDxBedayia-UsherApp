@@ -1,0 +1,37 @@
+name: Expo Deploy
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update:
+    name: EAS Update
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🏗 Setup Repo
+        uses: actions/checkout@v6
+
+      - name: 🏗 Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📦 Install Dependencies
+        run: npm ci
+
+      # 1. Publish to Preview Branch (Android App)
+      - name: 🚀 Publish to Preview
+        run: eas update --branch preview --message "Commit: ${{ github.sha }}"
+
+      # 2. Publish to Production Branch (iPhone users using the website)
+      - name: 🚀 Publish to Production
+        run: eas deploy --prod
