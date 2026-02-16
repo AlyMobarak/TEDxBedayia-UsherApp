@@ -1,0 +1,28 @@
+name: PR Checks
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Verify Project Health
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🏗 Setup Repo
+        uses: actions/checkout@v6
+
+      - name: 🏗 Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - name: 📦 Install Dependencies
+        run: npm ci
+
+      - name: 🩺 Expo Doctor
+        run: npx expo-doctor # Checks for common config issues and dependency mismatches
+
+      - name: 🏗 Type Check
+        run: npx tsc # Validates TypeScript
